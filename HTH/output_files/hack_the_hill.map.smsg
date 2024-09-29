@@ -1,0 +1,3 @@
+Warning (10720): Verilog HDL or VHDL warning at qsys/s5_iob_sdi_tx/synthesis/submodules/sv_reconfig_bundle_to_xcvr.sv(26): MESSAGE_ON or MESSAGE_OFF directive cannot process the non-HDL message ID 13024. File: C:/HTH/qsys/s5_iob_sdi_tx/synthesis/submodules/sv_reconfig_bundle_to_xcvr.sv Line: 26
+Warning (10720): Verilog HDL or VHDL warning at qsys/s5_iob_sdi_tx/synthesis/submodules/sv_reconfig_bundle_to_xcvr.sv(26): MESSAGE_ON or MESSAGE_OFF directive cannot process the non-HDL message ID 21074. File: C:/HTH/qsys/s5_iob_sdi_tx/synthesis/submodules/sv_reconfig_bundle_to_xcvr.sv Line: 26
+Warning (13024): Output pins are stuck at VCC or GND

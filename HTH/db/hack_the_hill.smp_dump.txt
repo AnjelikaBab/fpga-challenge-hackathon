@@ -1,0 +1,34 @@
+
+State Machine - |hack_the_hill|ultrix_iob:ultrix_iob|sdi12_tx_hac:sdi12_tx0|sdi_insert_smpte352:sdi_insert_smpte352|state
+Name state.HD_CSUM state.HD_DATA4 state.HD_DATA3 state.HD_DATA2 state.HD_DATA1 state.HD_DCNT state.HD_SDID state.HD_DID state.HD_ADF3 state.HD_ADF2 state.0000 
+state.0000 0 0 0 0 0 0 0 0 0 0 0 
+state.HD_ADF2 0 0 0 0 0 0 0 0 0 1 1 
+state.HD_ADF3 0 0 0 0 0 0 0 0 1 0 1 
+state.HD_DID 0 0 0 0 0 0 0 1 0 0 1 
+state.HD_SDID 0 0 0 0 0 0 1 0 0 0 1 
+state.HD_DCNT 0 0 0 0 0 1 0 0 0 0 1 
+state.HD_DATA1 0 0 0 0 1 0 0 0 0 0 1 
+state.HD_DATA2 0 0 0 1 0 0 0 0 0 0 1 
+state.HD_DATA3 0 0 1 0 0 0 0 0 0 0 1 
+state.HD_DATA4 0 1 0 0 0 0 0 0 0 0 1 
+state.HD_CSUM 1 0 0 0 0 0 0 0 0 0 1 
+
+State Machine - |hack_the_hill|ultrix_iob:ultrix_iob|sdi12_tx_hac:sdi12_tx0|sdi_insert_smpte352:sdi_insert_smpte352|b_state
+Name b_state.B_DATA3 b_state.B_DATA2 b_state.B_DATA1 b_state.000 b_state.B_DATA4 
+b_state.000 0 0 0 0 0 
+b_state.B_DATA1 0 0 1 1 0 
+b_state.B_DATA2 0 1 0 1 0 
+b_state.B_DATA3 1 0 0 1 0 
+b_state.B_DATA4 0 0 0 1 1 
+
+State Machine - |hack_the_hill|ultrix_iob:ultrix_iob|ref_link_rx:ref_link_rx2|state_rx
+Name state_rx.00 state_rx.RX_STOP state_rx.RX_SHIFT 
+state_rx.00 0 0 0 
+state_rx.RX_SHIFT 1 0 1 
+state_rx.RX_STOP 1 1 0 
+
+State Machine - |hack_the_hill|ultrix_iob:ultrix_iob|ref_link_rx:ref_link_rx1|state_rx
+Name state_rx.00 state_rx.RX_STOP state_rx.RX_SHIFT 
+state_rx.00 0 0 0 
+state_rx.RX_SHIFT 1 0 1 
+state_rx.RX_STOP 1 1 0 

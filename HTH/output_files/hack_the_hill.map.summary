@@ -1,0 +1,23 @@
+Analysis & Synthesis Status : Successful - Fri Sep 27 22:34:40 2024
+Quartus Prime Version : 23.1std.1 Build 993 05/14/2024 SC Standard Edition
+Revision Name : hack_the_hill
+Top-level Entity Name : hack_the_hill
+Family : Arria V GZ
+Logic utilization (in ALMs) : N/A
+Total registers : 4124
+Total pins : 86
+Total virtual pins : 4
+Total block memory bits : 417,792
+Total DSP Blocks : 0
+Total HSSI STD RX PCSs : 0
+Total HSSI 10G RX PCSs : 0
+Total HSSI GEN3 RX PCSs : 0
+Total HSSI PMA RX Deserializers : 0
+Total HSSI STD TX PCSs : 0
+Total HSSI 10G TX PCSs : 1
+Total HSSI GEN3 TX PCSs : 0
+Total HSSI PMA TX Serializers : 1
+Total HSSI PIPE GEN1_2s : 0
+Total HSSI GEN3s : 0
+Total PLLs : 2
+Total DLLs : 0

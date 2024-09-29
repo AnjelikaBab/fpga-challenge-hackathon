@@ -1,0 +1,22 @@
+
+-- File Name = C:/HTH/reconfig_mif/xcvr_native_avgz_0_atxpll0.mif.mif
+WIDTH=16;
+DEPTH=12;
+
+ADDRESS_RADIX=UNS;
+DATA_RADIX=BIN;
+
+CONTENT BEGIN
+	0   :   0000000001000001; -- Start of MIF opcode - FAMILY - Arria V GZ
+	1   :   0000000010000010; -- Type of MIF opcode
+	2   :   0001000001000001; -- ATX - PLL section
+	3   :   0111101101001000;
+	4   :   0001010100000000;
+	5   :   0001001010011001; -- ATX - PLL section
+	6   :   0001011000011001;
+	7   :   0101000110100101;
+	8   :   0001010011110001; -- ATX - PLL section
+	9   :   0000111000000001;
+	10  :   0000000000000000;
+	11  :   0000000000011111; -- End of MIF opcode
+END;

@@ -1,0 +1,2 @@
+v1
+GXB_MERGING,HSSI AVMM INTERFACE3,896808,s5_iob_sdi_tx:sdi_tx_phy|altera_xcvr_native_sv:xcvr_native_avgz_0|sv_xcvr_native:gen_native_inst.xcvr_native_insts[0].gen_bonded_group_native.xcvr_native_inst|sv_xcvr_avmm:inst_sv_xcvr_avmm|avmm_interface_insts[0].stratixv_hssi_avmm_interface_inst,s5_iob_sdi_tx:sdi_tx_phy|altera_xcvr_native_sv:xcvr_native_avgz_0|sv_xcvr_plls:gen_native_inst.xcvr_native_insts[0].gen_bonded_group_plls.gen_tx_plls.tx_plls|pll[0].avmm.stratixv_hssi_avmm_interface_inst,
