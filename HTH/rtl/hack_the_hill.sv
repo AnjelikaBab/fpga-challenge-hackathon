@@ -1,273 +1,212 @@
 /****************************************************************************
-FILENAME     :  video_uut.sv
-PROJECT      :  Hack the Hill 2024
+Copyright (C) 2024 Ross Video Limited.  www.rossvideo.com
+
+FILENAME     :  hack_the_hill.sv
+PROJECT      :  Hac-A-Thon
+DEVICE       :  5AGZME3H2F35C3N
+DESCRIPTION  :  Top level RTL for FPGAs on IOBNC cards.
+
 ****************************************************************************/
 
-/*  INSTANTIATION TEMPLATE  -------------------------------------------------
 
-video_uut video_uut (       
-    .clk_i          ( ),//               
-    .cen_i          ( ),//
-    .vid_sel_i      ( ),//
-    .vdat_bars_i    ( ),//[19:0]
-    .vdat_colour_i  ( ),//[19:0]
-    .fvht_i         ( ),//[ 3:0]
-    .fvht_o         ( ),//[ 3:0]
-    .video_o        ( ) //[19:0]
+
+`default_nettype none
+
+module hack_the_hill (
+   input    wire              gblrst_n_i,
+   input    wire              clk_lvds_i,          // 
+   input    wire              gclk0_148m50_i,      //
+   input    wire              gclk1_148m50_i,      // 
+   output   wire [1:0]        gclk_sel_o,
+   input    wire              clkmux_in_i,         // 
+   output   wire              dpaclk_sel_o,        // 
+   input    wire              memrefclk_i,         // 125 MHz
+
+   // Control System
+   input    wire  [1:0]       triga_i,
+   // Video
+   input    wire              egress_refclk_i,
+   output   wire              sdi_o,
+
+   output   wire  [11:0]      vcxo_up_o,
+   output   wire  [11:0]      vcxo_dn_o,
+   output   wire  [13:0]      vcxo_fs_o,           // 1 = 148.5; 0 = 148.35
+
+   output   wire  [5:0]       eq_cs_n_o,
+   output   wire              eq_sclk_o,
+   output   wire              eq_din_o,
+
+   output   wire  [5:0]       cd_slew_o,           // 1 = SD; 0 = HD->12G
+   output   wire  [5:0]       cd_mute_sclk_o,
+   output   wire  [5:0]       cd_cs_n_o,
+   output   wire              cd_din_o,
+   // LEDs
+   output   wire  [5:0]       sig_pres_o,
+   output   wire  [5:0]       rx_lock_o
+
 );
 
--------------------------------------------------------------------------- */
+// terminate unused outputs 
+//*** DO NOT MODIFY THESE !!!!!! ****
+assign rx_lock_o        = 0;// Turn LED off
+assign sig_pres_o       = 0;// Turn LED off
+assign cd_slew_o        = 6'h00;
+assign cd_mute_sclk_o   = 6'h00;
+assign cd_cs_n_o        = 6'h00;
+assign cd_din_o         = 1'b0;
+assign eq_sclk_o        = 1'b0;
+assign eq_din_o         = 1'b0;
+assign eq_cs_n_o        = 6'h00;
+assign gclk_sel_o       = 2'b00; // Gclock select must allways be set to zero
 
+//////////////////////////////////////////////////////
+//
+// Global Power-up Reset Generator.
+// On the IO card, the input pin gblrst_n_i is not asserted when the
+// FPGA starts initially.
+// Use the reset generator module to create a clean global asynchronous reset
+// pulse of about 128 / 125MHz = 1.024 us at startup.
+// The module also has a glitch filter to debounce the gblrst_n_i input pin.
+// To be valid and trigger a global reset, the input pin must be asserted for
+// at least 5 / 125Mhz = 40 ns.
+wire gblrst, gblrst_n; // Global reset, active high and active low signals
+wire  clk125_locked;
+wire  clk_300m;
+wire  clk_150m;
+wire  clk_125m;
+wire  clk_214m;
+wire  rst_lvds;
+wire  rst_300m;
 
-module video_uut (
-    input  wire         clk_i           ,// clock
-    input  wire         cen_i           ,// clock enable
-    input  wire         vid_sel_i       ,// select source video
-    input  wire [19:0]  vdat_bars_i     ,// input video {luma, chroma}
-    input  wire [19:0]  vdat_colour_i   ,// input video {luma, chroma}
-    input  wire [3:0]   fvht_i          ,// input video timing signals
-    output wire [3:0]   fvht_o          ,// 1 clk pulse after falling edge on input signal
-    output wire [19:0]  video_o          // 1 clk pulse after any edge on input signal
-); 
+global_reset_gen # (               // Generates a reset pulse on power-up
+  .N_BIT_DEBOUNCE( 5            ), // N bit shift register debouncer (Min=2)
+  .N_BIT_COUNT   ( 7            )  // 2^N pulse width counter (Min=2)
+) global_reset_gen (               // 2^7 default to 128 clk_i periods
+  .reset_i       (~gblrst_n_i   ), // Active high asynchronous reset input
+  .clk_i         (memrefclk_i   ), // External clock oscillator
+  .reset_o       (gblrst        ), // Active high global reset output
+  .reset_n_o     (gblrst_n      )  // Active low  global reset output
+);
 
-reg [19:0]  vid_d1;
-reg [3:0]   fvht_d1;
-reg h_dly; //h delay
-reg v_dly; //v delay
-reg [11:0] line_cnt;
-reg [11:0] pixel_cnt;
+clk125_pll clk125_pll (
+   .reset_reset   (gblrst        ),
+   .refclk_clk    (memrefclk_i   ), // 125MHz ref
+   .outclk0_clk   (clk_300m      ),
+   .outclk1_clk   (clk_150m      ),
+   .outclk2_clk   (clk_125m      ),
+   .outclk3_clk   (clk_214m      ),
+   .locked_export (clk125_locked )
+);
 
-//colour change
-reg [4:0] colour_change1 = 0;
-reg [4:0] colour_change2 = 3;
+assign dpaclk_sel_o = clkmux_in_i;
 
-reg [7:0] colour_count = 0;
-reg [7:0] colour_debounce = 20;
+// we must hold things in reset until we get a clock
+reg [4:0] rst_cnt = 0;
+wire      clk_rst = ~(&rst_cnt);// clock startup reset
+always @(posedge clk_lvds_i) rst_cnt <= (&rst_cnt)? rst_cnt : rst_cnt + 1;//FIXME
 
+reset_syncer reset_syncer_lvds_clk (
+    .clk_i     (clk_lvds_i      ),//
+    .rst_i     (gblrst | clk_rst ),//startup reset
+    .rst_mh_o  (rst_lvds      ) //
+);
 
-reg [9:0] y_arr[8] = '{940, 646, 525, 450, 335, 260, 139, 64}; 
-reg [9:0] cb_arr[8] = '{512, 176, 625, 289, 735, 399, 848, 512}; 
-reg [9:0] cr_arr[8] = '{512, 567, 176, 231, 793, 848, 457, 512};
+reset_syncer reset_syncer_300m (
+    .clk_i     (clk_300m    ),//
+    .rst_i     (~clk125_locked),//
+    .rst_mh_o  (rst_300m    ) //
+);
 
+wire            egress_tx_clkout;
+wire            sdi_tx_ready    ;
+wire [79:0]     sdi_tx_data     ;
+wire            vid_clk         ;
+wire            vid_cen         ;
+wire [19:0]     vdat_bars       ;
+wire [19:0]     vdat_colour     ;
+wire [19:0]     vdat_tx         ;
+wire [3:0]      fvht_rx         ;
+wire [3:0]      fvht_tx         ;
 
-//frame thingy
-reg[7:0] target_wait = 1;
-//reg[11:0] f_cnt = 0;
+//Ross IP
+//*** DO NOT MODIFY THiS !!!!!! ****
+ultrix_iob ultrix_iob(
+    .clk_lvds_i         (clk_lvds_i         ),//          
+    .rst_lvds_i         (rst_lvds           ),//          
+    .clk_300m_i         (clk_300m           ),// 
+    .rst_300m_i         (rst_300m           ),//          
+    .gclk0_148m50_i     (gclk0_148m50_i     ),//
+    .gclk1_148m50_i     (gclk1_148m50_i     ),// 
+    .clkmux_in_i        (clkmux_in_i        ),//          
+    .triga_i            (triga_i            ),//[1:0]          
+    .egress_tx_clkout_i (egress_tx_clkout   ),// 
+    .sdi_tx_ready_i     (sdi_tx_ready       ),//        
+    .sdi_tx_data_o      (sdi_tx_data        ),//[79:0]
+    .vcxo_fs_o          (vcxo_fs_o          ),//[13:0] 
+    .vcxo_up_o          (vcxo_up_o          ),//[11:0] 
+    .vcxo_dn_o          (vcxo_dn_o          ),//[11:0] 
+    .vid_clk_o          (vid_clk            ),// 
+    .vid_cen_o          (vid_cen            ),// 
+    .vdat_i             (vdat_tx            ),//[19:0]
+    .fvht_i             (fvht_tx            ),//[3:0]
+    .vdat_bars_o        (vdat_bars          ),//[19:0]
+    .vdat_colour_o      (vdat_colour        ),//[19:0]
+    .fvht_o             (fvht_rx            ) //[3:0]        
+);
+//*****************************************************************************
+wire [511:0]  RS_reg_prob;
+wire [511:0]  RC_reg_prob;
 
+probes u0 (
+    .source (RC_reg_prob), //output
+    .probe  (RS_reg_prob)  //input
+);
 
-//box initial coordinates
-reg [11:0] x1[2] = '{1, 1600}; 
-reg [11:0] x2[2] = '{300, 1900};
-reg [11:0] y1[2] = '{1, 600};
-reg [11:0] y2[2] = '{300 + 43, 900+43};
-
-reg[11:0] w[2] = '{300 - 1, 1900 - 1600}; 
-reg[11:0] h[2] = '{343 - 1, 943 - 600}; 
-
-
-
-//background
-reg [9:0] y = 64;
-reg [9:0] cb = 512;
-reg [9:0] cr = 512;
-
-//box
-reg [9:0] by = 450;
-reg [9:0] bcb = 289;
-reg [9:0] bcr = 231;
-
-//step
-reg [5:0]step_x = 1;
-reg [5:0]step_y = 1;
-
-reg forward_x[2] = '{1,0};
-//reg forward_x2
-reg forward_y[2] = '{1,0};
-
-reg collide = 0;
-//reg forward_y2
-
-reg toggle = 0; //changes between cb and cr
-reg [7:0] frame_count = 0; //count for number of frames
-
-wire h_in = fvht_i[1];
-wire v_in = fvht_i[2];
-wire no_mans_land = h_in||v_in;
-
-wire h_rising = h_in & ~h_dly;
-wire h_falling = ~h_in & h_dly;
-
-wire v_rising = v_in & ~v_dly;
-wire v_falling = ~v_in & v_dly;
-
-always @(posedge clk_i) begin
-    if(cen_i) begin
-		h_dly <= h_in;
-		v_dly <= v_in;
-		//vid_d1  <= (vid_sel_i)? vdat_colour_i : vdat_bars_i;
-		
-		if((pixel_cnt >= x1[0]) && (pixel_cnt <= x2[0]) && (line_cnt >= y1[0]) && (line_cnt <= y2[0])) begin
-			
-			vid_d1[19:10] = y_arr[colour_change1];
-		
-			if (toggle) begin
-				vid_d1[9:0] <= cb_arr[colour_change1];
-				toggle <= 0;
-			end else begin
-				vid_d1[9:0] <= cr_arr[colour_change1];
-				toggle <= 1;
-			end
-		
-		end
-		
-		else if((pixel_cnt >= x1[1]) && (pixel_cnt <= x2[1]) && (line_cnt >= y1[1]) && (line_cnt <= y2[1])) begin
-			
-			vid_d1[19:10] = y_arr[colour_change2];
-		
-			if (toggle) begin
-				vid_d1[9:0] <= cb_arr[colour_change2];
-				toggle <= 0;
-			end else begin
-				vid_d1[9:0] <= cr_arr[colour_change2];
-				toggle <= 1;
-			end
-			
-		
-		end else begin
-		
-			vid_d1 <= vdat_bars_i;
-
-		/*
-			vid_d1[19:10] = y_arr[7];
-		
-			if (toggle) begin
-				vid_d1[9:0] <= cb_arr[7];
-				toggle <= 0;
-			end else begin
-				vid_d1[9:0] <= cr_arr[7];
-				toggle <= 1;
-			end
-			*/
-		end
-		
-		
-		if(frame_count == target_wait) begin
-				// x axis bouncing 
-				
-            if(x2[0] < 1919 && forward_x[0]) begin
-                x1[0] <= step_x + x1[0];
-                x2[0] <= step_x + x2[0];
-            end else if ((x2[0] >= 1919 && forward_x[0]) || forward_x[0] && collide) begin
-					 forward_x[0] <= 0;
-					 collide <= 0;
-					 colour_change1++;
-				end else if(x1[0] > 0 && (!forward_x[0])) begin
-                x1[0] <= x1[0] - step_x;
-                x2[0] <= x2[0] - step_x;
-            end else if ((x1[0] == 0 && (!forward_x[0]))|| !forward_x[0] && collide) begin
-                forward_x[0] <= 1;
-					 collide <= 0;
-					 colour_change1++;
-            end
-				
-				// y axis bouncing
-				if(y2[0] < 1125 && forward_y[0]) begin
-                y1[0] <= step_y + y1[0];
-                y2[0] <= step_y + y2[0];
-            end else if ((y2[0] >= 1125 && forward_y[0])|| forward_y[0] && collide) begin
-					 forward_y[0] <= 0;
-					 collide <= 0;
-					 colour_change1++;
-				end else if(y1[0] > 42 && (!forward_y[0])) begin
-                y1[0] <= y1[0] - step_y;
-                y2[0] <= y2[0] - step_y;
-            end else if ((y1[0] == 42 && (!forward_y[0])) || !forward_y[0] && collide) begin
-                forward_y[0] <= 1;
-					 collide <= 0;
-					 colour_change1++;
-            end
-				
-				
-				
-				
-				if(x2[1] < 1919 && forward_x[1]) begin
-                x1[1] <= step_x + x1[1];
-                x2[1] <= step_x + x2[1];
-            end else if ((x2[1] >= 1919 && forward_x[1]) || forward_x[1] && collide) begin
-					 forward_x[1] <= 0;
-					 colour_change2++;
-				end else if(x1[1] > 0 && (!forward_x[1])) begin
-                x1[1] <= x1[1] - step_x;
-                x2[1] <= x2[1] - step_x;
-            end else if ((x1[1] == 0 && (!forward_x[1]))|| !forward_x[1] && collide) begin
-                forward_x[1] <= 1;
-					 colour_change2++;
-            end
-				
-				// y axis bouncing
-				if(y2[1] < 1125 && forward_y[1]) begin
-                y1[1] <= step_y + y1[1];
-                y2[1] <= step_y + y2[1];
-            end else if ((y2[1] >= 1125 && forward_y[1])|| forward_y[1] && collide) begin
-					 forward_y[1] <= 0;
-					 colour_change2++;
-				end else if(y1[1] > 42 && (!forward_y[1])) begin
-                y1[1] <= y1[1] - step_y;
-                y2[1] <= y2[1] - step_y;
-            end else if ((y1[1] == 42 && (!forward_y[1])) || !forward_y[1] && collide) begin
-                forward_y[1] <= 1;
-					 colour_change2++;
-            end
-				
-				
-				
-				
-				// color change
-            if(colour_change1 == 7) begin
-                colour_change1 <= 0;
-            end 
-				
-				if(colour_change2 == 7) begin
-                colour_change2 <= 0;
-            end 
-
-            frame_count <= 0;
-				
-				
-				
-				if((x1[0] < x1[1] + w[1]) && (x1[0] + w[0] > x1[1]) && (y1[0] < y1[1] + h[1]) && (y1[0] + h[0] > y[1])) begin //Collision Function, checks if any of the edges are touching
-					collide <=1;
-					
-				end
-
-				
-      end
-		
-		
-		pixel_cnt <= pixel_cnt + 1;
-		fvht_d1 <= fvht_i;
-
-		
-	   if(h_falling == 1) begin
-			pixel_cnt <= 0;
-			line_cnt <= line_cnt + 1;
-			//h_falling <= 0;
-		end
-		
-		if(v_rising == 1) begin
-			line_cnt <= 1;
-			frame_count <= frame_count + 1;
-			//v_rising <= 0;
-		end
-		
-    end
+always @* begin
+    RS_reg_prob = RC_reg_prob;
 end
+//*****************************************************************************
+//*****************************************************************************
+///////////////////////////////////////////////////////////////////////////////
+// UUT
+///////////////////////////////////////////////////////////////////////////////
+wire vid_sel_w = RC_reg_prob[0];
 
+video_uut video_uut (       
+    .clk_i          (vid_clk 		),//               
+    .cen_i          (vid_cen 		),//              
+    .vid_sel_i      (vid_sel_w 	),//
+    .vdat_bars_i    (vdat_bars 	),//[19:0]
+    .vdat_colour_i  (vdat_colour ),//[19:0]
+    .fvht_i         (fvht_rx 		),//[ 3:0]
+    .fvht_o         (fvht_tx 		),//[ 3:0]
+    .video_o        (vdat_tx 		) //[19:0]
+);
 
-// OUTPUT
-assign fvht_o  = fvht_d1;
-assign video_o = vid_d1;
-
+////*****************************************************************************
+//// SDI TX PHY
+////*****************************************************************************
+// 40bit, ATX pll.
+s5_iob_sdi_tx sdi_tx_phy (
+ .pll_powerdown_pll_powerdown              (1'b0                    ),//input  [0:0] **** Has to match shared PLL ****
+ .pll_select_pll_select                    (1'b0                    ),//input  [0:0]
+// .reconfig_from_xcvr_reconfig_from_xcvr    (),//output [91:0]
+// .reconfig_to_xcvr_reconfig_to_xcvr        (),//input  [139:0]
+ .tx_10g_clkout_tx_10g_clkout              (egress_tx_clkout        ),//output [0:0]
+ .tx_10g_control_tx_10g_control            (9'b0                    ),//input  [8:0]
+ .tx_10g_coreclkin_tx_10g_coreclkin        (egress_tx_clkout        ),//input  [0:0]
+ .tx_10g_data_valid_tx_10g_data_valid      (sdi_tx_ready            ),//input  [0:0]
+ .tx_clock_clk                             (clk_125m                ),//input
+ .tx_parallel_data_tx_parallel_data        (sdi_tx_data       [63:0]),//input  [63:0]
+ .tx_pll_refclk_tx_pll_refclk              (egress_refclk_i         ),//input  [0:0]
+ .tx_ready_tx_ready                        (sdi_tx_ready            ),//output [0:0]
+// .tx_reset_reset                           (reg_sdi_tx_rst          ),//input
+ .tx_reset_reset                           (1'b0                    ),//input
+ .tx_serial_data_tx_serial_data            (sdi_o                   ) //output [0:0]
+);
 
 endmodule
+
+`default_nettype wire // for bad IP that depends on this
+
 
