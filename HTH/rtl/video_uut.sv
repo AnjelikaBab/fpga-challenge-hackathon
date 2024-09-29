@@ -109,57 +109,29 @@ always @(posedge clk_i) begin
     if(cen_i) begin
 		h_dly <= h_in;
 		v_dly <= v_in;
-		//vid_d1  <= (vid_sel_i)? vdat_colour_i : vdat_bars_i;
 		
+		// check boundaries of boxes
 		if((pixel_cnt >= x1[0]) && (pixel_cnt <= x2[0]) && (line_cnt >= y1[0]) && (line_cnt <= y2[0])) begin
-			
-			//vid_d1[19:10] <= y_arr[colour_change1];
 			box_signal1 <= 1;
-			box_signal2 <= 0;
-//			if (toggle) begin
-//				//vid_d1[9:0] <= cb_arr[colour_change1];
-//				toggle <= 0;
-//			end else begin
-//				//vid_d1[9:0] <= cr_arr[colour_change1];
-//				toggle <= 1;
-//			end
-		
-		end
-		
-		else if((pixel_cnt >= x1[1]) && (pixel_cnt <= x2[1]) && (line_cnt >= y1[1]) && (line_cnt <= y2[1])) begin
-			
-			//vid_d1[19:10] <= y_arr[colour_change2];
+			box_signal2 <= 0;		
+		end else if((pixel_cnt >= x1[1]) && (pixel_cnt <= x2[1]) && (line_cnt >= y1[1]) && (line_cnt <= y2[1])) begin	
 			box_signal1 <= 0;
 			box_signal2 <= 1;
-//			if (toggle) begin
-//				vid_d1[9:0] <= cb_arr[colour_change2];
-//				toggle <= 0;
-//			end else begin
-//				vid_d1[9:0] <= cr_arr[colour_change2];
-//				toggle <= 1;
-			end
-			
-		
-		else begin
+		end else begin
 			box_signal1 <= 0;
 			box_signal2 <= 0;
-			//vid_d1 <= vdat_bars_i;
-
 		end
 		
 		if (toggle) begin
-				//vid_d1[9:0] <= cb_arr[colour_change1];
 				toggle <= 0;
 		end else begin
-				//vid_d1[9:0] <= cr_arr[colour_change1];
 				toggle <= 1;
 		end
 		
-		//set box color
+		//setting up box colors
 		box_color1[19:10] <= y_arr[colour_change1];
 		box_color2[19:10] <= y_arr[colour_change2];
 		
-		//mux1
 		if (toggle) begin
 			box_color1[9:0] <= cb_arr[colour_change1];
 			box_color2[9:0] <= cb_arr[colour_change2];
@@ -167,8 +139,6 @@ always @(posedge clk_i) begin
 			box_color1[9:0] <= cr_arr[colour_change1];
 			box_color2[9:0] <= cr_arr[colour_change2];
 		end
-		
-		
 		
 		if (box_signal1) begin
 			vid_d1 <= box_color1;
@@ -214,9 +184,6 @@ always @(posedge clk_i) begin
 					 colour_change1++;
             end
 				
-				
-				
-				
 				if(x2[1] < 1919 && forward_x[1]) begin
                 x1[1] <= step_x + x1[1];
                 x2[1] <= step_x + x2[1];
@@ -246,9 +213,6 @@ always @(posedge clk_i) begin
 					 colour_change2++;
             end
 				
-				
-				
-				
 				// color change
             if(colour_change1 == 7) begin
                 colour_change1 <= 0;
@@ -260,21 +224,14 @@ always @(posedge clk_i) begin
 
             frame_count <= 0;
 				
-				
-				
 				if((x1[0] < x1[1] + w[1]) && (x1[0] + w[0] > x1[1]) && (y1[0] < y1[1] + h[1]) && (y1[0] + h[0] > y[1])) begin //Collision Function, checks if any of the edges are touching
-					collide <=1;
-					
+					collide <=1;	
 				end
-
-				
       end
-		
-		
+				
 		pixel_cnt <= pixel_cnt + 1;
 		fvht_d1 <= fvht_i;
 
-		
 	   if(h_falling == 1) begin
 			pixel_cnt <= 0;
 			line_cnt <= line_cnt + 1;
